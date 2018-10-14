@@ -60,8 +60,8 @@ __global__ void tilledMatrixMultiplication(float *matrixA, float *matrixB, float
     } else{
       tile_B[TS * ty + tx] = 0;
     }
-    // tile_A[TS * ty + tx] = matrixA[rows * by * TS + rows * ty + tx + TS * offset];
-    // tile_B[TS * ty + tx] = matrixB[bx * TS + rows * ty + tx + rows * TS * offset];
+    // tile_A[TS * ty + tx] = matrixA[rows * by * TS + rows * ty + tx + TS * offset]; // Esto lo usaba cuando no tenia el chequeo de los limites
+    // tile_B[TS * ty + tx] = matrixB[bx * TS + rows * ty + tx + rows * TS * offset]; // Esto lo usaba cuando no tenia el chequeo de los limites
     __syncthreads();
     // if (by==0&&bx==0&&ty==0&&tx==0) {
     //   printf("offset: %d\n", offset);
