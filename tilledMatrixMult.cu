@@ -4,13 +4,14 @@
 #include <cmath>
 #include <stdlib.h>
 
-#define TS 32
+#define TS 2
 
 using namespace std;
 
 void initializeMatrix(float *matrix, const int rows, const int cols){
   for (size_t i = 0; i < rows * cols; i++){
-    matrix[i] = rand() % 10 + 1;
+    // matrix[i] = rand() % 10 + 1;
+    matrix[i] = 1;
   }
 }
 
@@ -49,14 +50,48 @@ __global__ void tilledMatrixMultiplication(float *matrixA, float *matrixB, float
   float sum = 0;
   const int offset_limit = (int)ceil((float)cols / TS);
   while (offset < offset_limit) {
-    tile_A[TS * ty + tx] = matrixA[rows * by * TS + rows * ty + tx + TS * offset];
-    tile_B[TS * ty + tx] = matrixB[bx * TS + rows * ty + tx + rows * TS * offset];
+    if (TS * offset + tx < cols && by * TS + ty < rows) {
+      tile_A[TS * ty + tx] = matrixA[rows * by * TS + rows * ty + tx + TS * offset];
+    } else {
+      tile_A[TS * ty + tx] = 0;
+    }
+    if (TS * offset + ty < rows && bx * TS + tx < cols) {
+      tile_B[TS * ty + tx] = matrixB[bx * TS + rows * ty + tx + rows * TS * offset];
+    } else{
+      tile_B[TS * ty + tx] = 0;
+    }
+    // tile_A[TS * ty + tx] = matrixA[rows * by * TS + rows * ty + tx + TS * offset];
+    // tile_B[TS * ty + tx] = matrixB[bx * TS + rows * ty + tx + rows * TS * offset];
     __syncthreads();
+    // if (by==0&&bx==0&&ty==0&&tx==0) {
+    //   printf("offset: %d\n", offset);
+    //   printf("A(%d,%d):\n%f %f\n%f %f\n", by,bx,tile_A[0], tile_A[1], tile_A[2], tile_A[3]);
+    //   printf("B(%d,%d):\n%f %f\n%f %f\n", by,bx,tile_B[0], tile_B[1], tile_B[2], tile_B[3]);
+    //   printf("\n");
+    // }
+    // if (by==0&&bx==1&&ty==0&&tx==0) {
+    //   printf("offset: %d\n", offset);
+    //   printf("A(%d,%d):\n%f %f\n%f %f\n",by,bx, tile_A[0], tile_A[1], tile_A[2], tile_A[3]);
+    //   printf("B(%d,%d):\n%f %f\n%f %f\n",by,bx, tile_B[0], tile_B[1], tile_B[2], tile_B[3]);
+    //   printf("\n");
+    // }
+    // if (by==1&&bx==0&&ty==0&&tx==0) {
+    //   printf("offset: %d\n", offset);
+    //   printf("A(%d,%d):\n%f %f\n%f %f\n",by,bx, tile_A[0], tile_A[1], tile_A[2], tile_A[3]);
+    //   printf("B(%d,%d):\n%f %f\n%f %f\n",by,bx, tile_B[0], tile_B[1], tile_B[2], tile_B[3]);
+    //   printf("\n");
+    // }
+    // if (by==1&&bx==1&&ty==0&&tx==0) {
+    //   printf("offset: %d\n", offset);
+    //   printf("A(%d,%d):\n%f %f\n%f %f\n",by,bx, tile_A[0], tile_A[1], tile_A[2], tile_A[3]);
+    //   printf("B(%d,%d):\n%f %f\n%f %f\n",by,bx, tile_B[0], tile_B[1], tile_B[2], tile_B[3]);
+    //   printf("\n");
+    // }
     for (int i = 0; i < TS; i++) {
       sum += tile_A[TS * ty + i] * tile_B[tx + TS * i];
     }
-    __syncthreads();
     offset += 1;
+    __syncthreads();
   }
   result[rows * (TS * by + ty) + (TS * bx + tx)] = sum;
 }
@@ -80,8 +115,8 @@ int main(int argc, char const *argv[]) {
   float *dev_result;
 
   // Set up size of matrix
-  const int rows = 2000;
-  const int cols = 2000;
+  const int rows = 3;
+  const int cols = 3;
   printf("Matrix size: rows %d columns %d\n", rows, cols);
 
   int bytes = rows * cols * sizeof(float);
@@ -126,7 +161,7 @@ int main(int argc, char const *argv[]) {
   SAFE_CALL(cudaDeviceSynchronize(), "Error executing kernel");
   auto end_at = chrono::high_resolution_clock::now();
   chrono::duration<float, std::milli> duration_ms = end_at - start_at;
-  printf("Multiply matrices on GPU with tiles <<<(%d,%d), (%d,%d)>>> elapsed: %f ms (%.2f seconds)\n",
+  printf("\nMultiply matrices on GPU with square tiles of size %d <<<(%d,%d), (%d,%d)>>> elapsed: %f ms (%.2f seconds)\n", TS,
         tiles_grid.x, tiles_grid.y, tiles_block.x, tiles_block.y, duration_ms.count(), duration_ms.count() / 1000);
 
   // SAFE_CALL kernel error
@@ -135,7 +170,7 @@ int main(int argc, char const *argv[]) {
   // Copy kernel result back to host side
   SAFE_CALL(cudaMemcpy(result, dev_result, bytes, cudaMemcpyDeviceToHost), "Error copying dev_result");
 
-  // printMatrix(result, rows, cols);
+  printMatrix(result, rows, cols);
 
   // Free device global memory
   SAFE_CALL(cudaFree(dev_matrixA), "Error freeing memory");
