@@ -20,3 +20,5 @@ Rubric:
 5. Report the average processing time and speedup for the different tile sizes.
 
 All the results asked for are in the report (ReporteTecnico.pdf)
+
+**Grade: 100**
